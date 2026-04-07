@@ -57,11 +57,16 @@ BCSC_survFN_5y(data,
                             "exam_age" = "age_c",
                             "month_since_PBC_dx" = "mossince1stdx"
                ), 
-               path = "G:/CTRHS/Scc/Projects/AB468DB/test_materials/")
+               path = "",
+               return_1yr_risk = TRUE,
+               use_avg_coef = FALSE,
+               return_compete_risk = FALSE)
 ### data: input predictors as a data frame or tibble.
 ### var_name: a vector of characters for mapping of variable names. Users need to supply the corresponding variable name on the right hand side of each equal sign for each predictor. If the user follows the same name of predictors as shown here in input data, no input for this parameter is needed.
 ### path: a character string showing the path to the folder where the needed materials are stored.
-
+### return_1yr_risk: a logical indicator of whether the predicted 1-year risk of interval second breast cancer should be returned.
+### use_avg_coef: a logical indicator of whether the prediction is based on 30 LASSO models or the average coefficients of the 30 models. Using the average coefficients will be computationally more efficient.
+### return_compete_risk: a logical indicator of whether the predicted 1-year risk of competing risk events (surveillance-detected second breast cancer or death) should be returned.
 ### === NOTE for users === 
 ### In a scenario when the input data only has one observation (i.e., data has 1 row only), the program automatically duplicates the record to make the data have 2 rows for computational reasons. In this case, users will see two rows in the output data frame with identical values.
 ### === === === === === ===
@@ -88,13 +93,29 @@ test_input = data.frame(
   mossince1stdx = c(12,27,17,29) # continous value no smaller than 6
 )
 
-library(here)
-source(paste0(here(),"/funcs_BCSC_survFN_5y_deid.R"))
+source("funcs_BCSC_survFN_5y_deid_20260331.r")
 time1 = proc.time()
-test_result_2 = BCSC_survFN_5y(data = test_input, path = here())
+test_result_2 = BCSC_survFN_5y(data = test_input)
 time2 = proc.time()
+time3 = proc.time()
+test_result_3 = BCSC_survFN_5y(data = test_input, use_avg_coef = TRUE, return_compete_risk = TRUE)
+time4 = proc.time()
 
-print(time2 - time1)
+print(time2 - time1) # 447 seconds using 30 LASSO models
+print(time4 - time3) # 15 seconds using average coefficients
 
+### Compare predicted 5-year risk
 test_result_2$risk_5yr
+# White       White       White       White 
+# 0.026812268 0.024712683 0.007085291 0.007124582 
+test_result_3$risk_5yr
+# White       White       White       White 
+# 0.026751837 0.024658623 0.007073652 0.007112148 
 
+### Output predicted 1-year risk for interval second breast cancer and competing risk events
+test_result_3$risk_1yr
+# White       White       White       White 
+# 0.006117211 0.004433306 0.001718769 0.001832561 
+test_result_3$risk_1yr_cr
+# White      White      White      White 
+# 0.01420151 0.01671839 0.02220270 0.01352631 

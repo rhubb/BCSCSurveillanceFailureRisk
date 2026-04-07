@@ -43,3 +43,46 @@ normalizeRisk_siteDxyear = function(model_object, data, weights=NULL, weight_lev
   if(weight_level=="link") risk_pr_norm = expit(risk_pr_norm)
   return(risk_pr_norm)
 }
+
+normalizeRisk_siteDxyear_avgCoef = function(avg_coef, data, weights=NULL, weight_level="response", designMx_siteDxyear){
+  
+  ## Get needed combination of site and PBC dxyear based on the names of weight:
+  if(is.null(dim(weights)) & length(weights)>0) combs = names(weights)
+  else combs = colnames(weights)
+  risk_pr_combs = sapply(1:length(combs),function(comb){
+    library(dplyr)
+    designMx_comb = designMx_siteDxyear[comb,]
+    if(is.matrix(data)) data=as_data_frame(data)
+    data_with_comb = data %>% mutate(PatientSite_cB=designMx_comb["PatientSite_cB"],
+                                     PatientSite_cC=designMx_comb["PatientSite_cC"],
+                                     PatientSite_cD=designMx_comb["PatientSite_cD"],
+                                     PatientSite_cE=designMx_comb["PatientSite_cE"],
+                                     PatientSite_cF=designMx_comb["PatientSite_cF"],
+                                     PatientSite_cG=designMx_comb["PatientSite_cG"],
+                                     dxyear_ns.1=designMx_comb["dxyear_ns.1"],
+                                     dxyear_ns.2=designMx_comb["dxyear_ns.2"],
+                                     dxyear_ns.3=designMx_comb["dxyear_ns.3"],
+                                     dxyear_ns.4=designMx_comb["dxyear_ns.4"])
+    data_with_comb = as.matrix(data_with_comb)
+    
+    if(weight_level=="link"){
+      # risk_pr_comb = avg_coef["(Intercept)"] + data_with_comb %*% avg_coef[-1]
+      risk_pr_comb = avg_coef["(Intercept)"] + data_with_comb %*% avg_coef[colnames(data_with_comb)]
+    }
+    else{
+      ### Define expit function
+      expit = function(x) exp(x)/(1+exp(x))
+      # risk_pr_comb = expit(avg_coef["(Intercept)"] + data_with_comb %*% avg_coef[-1])
+      risk_pr_comb = expit(avg_coef["(Intercept)"] + data_with_comb %*% avg_coef[colnames(data_with_comb)])
+    }
+    return(risk_pr_comb)
+  })
+  
+  if(is.null(weights)) risk_pr_norm = rowMeans(risk_pr_combs)
+  else if(is.null(dim(weights)) & length(weights)>0) risk_pr_norm = matrixStats::rowWeightedMeans(x = risk_pr_combs,w = weights)
+  else risk_pr_norm = rowSums(risk_pr_combs * weights) / rowSums(weights)
+
+  if(weight_level=="link") risk_pr_norm = expit(risk_pr_norm)
+
+  return(risk_pr_norm)
+}
